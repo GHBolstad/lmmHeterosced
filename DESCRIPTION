@@ -1,0 +1,16 @@
+Package: lmmHeterosced
+Type: Package
+Title: Linear mixed model with heteroscedastisity
+Version: 0.1.0.9000
+Author: person("Geir H.", "Bolstad", email = "geir.bolstad@nina.no",
+                  role = c("aut", "cre"))
+Maintainer: Geir H. Bolstad <geir.bolstad@nina.no>
+Description: Linear mixed model with the log error variance as linear function of data.
+License: GPL (>= 2)
+Imports:
+    TMB,
+    Rcpp,
+    lme4,
+    Matrix
+RoxygenNote: 5.0.1
+LinkingTo: Rcpp, TMB, RcppEigen
