@@ -21,7 +21,7 @@ Type objective_function<Type>::operator() ()
   PARAMETER_VECTOR(ln_G);     // log variances of the random effects
 
 
-  int i, j, k;
+  int i, k;
   Type nll=0;
   int n = Y.rows();
 
