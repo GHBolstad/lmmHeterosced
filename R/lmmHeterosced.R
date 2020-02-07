@@ -29,13 +29,13 @@
 
 lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1){
 
-  mf <- lFormula(formula, data)
+  mf <- lme4::lFormula(formula, data)
 
   Y <- as.matrix(mf$fr[1])
-  X <- Matrix(mf$X, sparse = T)
-  Z <- t(Matrix(mf$reTrms$Zt))
-  n_random <- ncol(mf$reTrms$flist)
-  n_u <- apply(mf$reTrms$flist, 2, function(x) length(unique(x)))
+  X <- Matrix::Matrix(mf$X, sparse = T)
+  Z <- Matrix::t(Matrix::Matrix(mf$reTrms$Zt))
+  n_random <- length(mf$reTrms$flist)
+  n_u <- sapply(mf$reTrms$flist, function(x) length(unique(x)))
   u_start <- c(0, cumsum(n_u))
   u_end <- cumsum(n_u)
 
@@ -66,7 +66,7 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1){
   #--------------
   # Model fitting
   #--------------
-  obj <- MakeADFun(dt, param, DLL = "lmmHeterosced", random=random, silent = TRUE)
+  obj <- TMB::MakeADFun(dt, param, DLL = "lmmHeterosced", random=random, silent = TRUE)
   optTime <- system.time(
     fit <- with(obj, nlminb(start=par, objective=fn, gradient=gr))
   )
@@ -75,7 +75,7 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1){
   # Return
   #-------
 
-  results <- summary(sdreport(obj))
+  results <- summary(TMB::sdreport(obj))
 
   Fixef <- matrix(results[which(rownames(results)=="b"),], ncol = 2,
                   dimnames=list(dimnames(X)[[2]], c("Estimate", "Std. Error")))
