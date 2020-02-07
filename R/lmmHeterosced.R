@@ -19,7 +19,7 @@
 #'
 #' @examples
 #'
-#' @importFrom TMB MakeADFun sdreport
+#' @importFrom TMB MakeADFun sdreport getParameterOrder
 #' @importFrom lme4 lFormula lmerControl
 #' @importFrom Matrix Matrix t
 #' @useDynLib lmmHeterosced
