@@ -76,3 +76,4 @@ abline(lm(log(mod$Residuals[,1]^2) ~ d$x), col = "green", lty= "dashed")
 ```
 
 
+
