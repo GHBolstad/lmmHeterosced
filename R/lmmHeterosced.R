@@ -11,9 +11,12 @@
 #' Heterosced (parameters of the heteroscedasticity function, a linear function of the log residual variance),
 #' Ranef_log_Var (random effect variances on log),
 #' Ranef (random effect),
+#' Residuals,
+#' error_var_matrix (variance matrix of the estimation error)
 #' fit (nlminb output),
 #' obj (MakeADFun ouptut),
 #' optTime (Optimization time)
+#' 
 #'
 #' @author Geir H. Bolstad
 #'
@@ -75,22 +78,27 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1){
   # Return
   #-------
 
-  results <- summary(TMB::sdreport(obj))
-
-  Fixef <- matrix(results[which(rownames(results)=="b"),], ncol = 2,
+  SD_report <- TMB::sdreport(obj, getJointPrecision = TRUE)
+  results <- summary(SD_report)
+  
+  Fixef <- matrix(results[which(rownames(results)=="b"),], ncol = 2, 
                   dimnames=list(dimnames(X)[[2]], c("Estimate", "Std. Error")))
-  Heterosced <- matrix(results[which(rownames(results)=="b_ln_R"),], ncol = 2,
+  Heterosced <- matrix(results[which(rownames(results)=="b_ln_R"),], ncol = 2, 
                        dimnames=list(dimnames(Q)[[2]], c("Estimate", "Std. Error")))
   Ranef_log_Var <-  matrix(results[which(rownames(results)=="ln_G"),], ncol = 2,
                            dimnames=list(colnames(mf$reTrms$flist), c("Estimate", "Std. Error")))
   Ranef <- matrix(results[which(rownames(results)=="u"),], ncol = 2,
                   dimnames=list(dimnames(Z)[[2]], c("Estimate", "Std. Error")))
+  Residuals <- obj$report()
+  
 
-  Residuals <- matrix(results[which(rownames(results)=="residuals"),], ncol = 2,
-                  dimnames=list(NULL, c("Estimate", "Std. Error")))
-
-  list(Fixef=Fixef, Heterosced=Heterosced, Ranef_log_Var=Ranef_log_Var, Ranef=Ranef, Residuals = Residuals,
-       fit = fit, obj = obj, optTime = optTime)
+  Fixef_param <- which(colnames(SD_report$jointPrecision)=="b")
+  Heterosced_param <- which(colnames(SD_report$jointPrecision)=="b_ln_R")
+  
+  error_var <- as.matrix(solve(SD_report$jointPrecision)[c(Fixef_param, Heterosced_param), c(Fixef_param, Heterosced_param)])
+  
+  list(Fixef=Fixef, Heterosced=Heterosced, Ranef_log_Var=Ranef_log_Var, Ranef=Ranef, Residuals = Residuals, 
+       error_var_matrix = error_var, fit = fit, obj = obj, optTime = optTime)
 
 }
 

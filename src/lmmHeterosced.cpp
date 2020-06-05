@@ -50,7 +50,7 @@ Type objective_function<Type>::operator() ()
     }
   }
 
-  ADREPORT(residuals);
+  REPORT(residuals);
 
   return nll;
 }
