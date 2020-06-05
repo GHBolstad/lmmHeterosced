@@ -29,17 +29,29 @@ library(lmmHeterosced)
 ```
 
 # Simulated data
-```{r data}
+To illustrate the use of the model we simulate a dataset with two explanatory variables and 10 categories with 50 data points within each category. The two explanatory variables influence both the expectation and variance of y. 
+```{r data, fig.height=7, fig.width=7}
 n_cat <- 10
 n <- 50
-d <- data.frame(x = rnorm(n*n_cat, 2, 1), cat = rep(1:n_cat, each = n))
-d$y <- rnorm(nrow(d), 1+0.5*x, exp(0.5*(1+0.5*d$x))) + rep(rnorm(n_cat), each = n)
-with(d, plot(x,y))
+d <- data.frame(x1 = rnorm(n*n_cat, 2, 1), x2=rnorm(n*n_cat, 1, 1), cat = rep(1:n_cat, each = n))
+d$y <- rnorm(nrow(d), 1+0.5*d$x1+0.1*d$x2, exp(0.5*(1+0.5*d$x1+0.6*d$x2))) + rep(rnorm(n_cat), each = n)
+par(mfrow=c(2,1))
+with(d, plot(x1,y))
+with(d, plot(x2,y))
+par(mfrow=c(1,1))
 ```
+
+# Centring
+If there is more than one explanatory variable, it is recommendable to mean center the all explanatory variable before the analysis. Otherwise the output of the plotting functions will look strange because of the intercept. With only one explanatory variable it makes no difference. 
+```{r}
+d$x1c <- d$x1 - mean(d$x1)
+d$x2c <- d$x2 - mean(d$x2)
+```
+
 
 # The model
 ```{r analysis}
-mod <- lmmHeterosced(formula = y~x+(1|cat), heterosced_formula = ~ 1 + x, data = d)
+mod <- lmmHeterosced(formula = y~ x1c + x2c +(1|cat), heterosced_formula = ~ x1c + x2c, data = d)
 ```
 
 # Results of average change in y
@@ -48,52 +60,28 @@ mod$Fixef
 ```
 
 # Results of Heteroscedasticity analysis
-The intercept gives the log residual variance at x = 0 and the linear parameter (x) gives the change in log residual variance with x
+The intercept gives the log residual variance at x1 = x2 = 0 and the linear parameters (x1 and x2) gives the change in log residual variance with x
 ```{r}
 mod$Heterosced
 ```
 
 # Plot of the model
-The black solid line give the change in the average, and dashed lines shows +/- one standard deviation. 
-```{r}
-with(d, plot(x,y, col = "grey"))
-x <- seq(min(d$x), max(d$x), length.out = 100)
-a <- mod$Heterosced[1,1]
-b <- mod$Heterosced[2,1]
-lines(x, mod$Fixef[1,1] + mod$Fixef[2,1]*x)
-lines(x, mod$Fixef[1,1] + mod$Fixef[2,1]*x + sqrt(exp(a + b*x)), col = "blue")
-lines(x, mod$Fixef[1,1] + mod$Fixef[2,1]*x - sqrt(exp(a + b*x)), col = "blue")
+The plotting function only handles one explanatory variable at the time. The black solid line give the change in the average, and blue lines shows how the heteroscedasticity changes by showing +/- one standard deviation of the residual distribution. 
+```{r, fig.height=7, fig.width=7}
+par(mfrow=c(2,1))
+plot(mod, "x1c", col_data = "grey", col_expectation = "black", col_sd = "blue")
+plot(mod, "x2c", col_data = "grey", col_expectation = "black", col_sd = "blue")
+par(mfrow=c(1,1))
 ```
 
 # Change in absolute y-values
-```{r}
-fn_mu<-function(m,s){ # expectation of folded normal
-  s*sqrt(2/pi)*exp((-1*m^2)/(2*s^2))+m*(1-2*pnorm(-1*m/s,0,1)) 
-}
-
-V <- eigen(mod$error_var_matrix)
-eigenv_samples <- sapply(V$values, function(x) rnorm(1000, 0, sqrt(x)))
-dist_param <- t(apply(eigenv_samples, 1, function(x) x%*%t(V$vectors)+c(mod$Fixef[,1],mod$Heterosced[,1]))) # Distribution of parameter values
-dist_absy <- t(apply(dist_param, 1, function(B) fn_mu(B[1] + B[2]*x, sqrt(exp(B[3] + B[4]*x)))))
-low_absy <- apply(dist_absy, 2, function(x) quantile(x, 0.025))
-high_absy <- apply(dist_absy, 2, function(x) quantile(x, 0.975))
-
-with(d, plot(x,abs(y), col = "grey"))
-lines(x, fn_mu(mod$Fixef[1,1] + mod$Fixef[2,1]*x, sqrt(exp(a + b*x))))
-lines(x, low_absy, lty = "dashed")
-lines(x, high_absy, lty = "dashed")
-
+Plot that show the expected change in the absolute values of the response variable. The average change expected change over all observed values of x is given by the inset with 95\% confidence interval in parenthesis.
+```{r, fig.height=7, fig.width=7}
+par(mfrow=c(2,1))
+plot_abs_y(mod, x = "x1c", col = "grey", line_col = "black", cex.legend = 0.9) 
+plot_abs_y(mod, x = "x2c", col = "grey", line_col = "black", cex.legend = 0.9) 
+par(mfrow=c(1,1))
 ```
-
-# Average change in abs(y)
-```{r}
-Avg_change <- coef(lm(fn_mu(mod$Fixef[1,1] + mod$Fixef[2,1]*d$x, sqrt(exp(a + b*d$x)))~d$x))[2]
-Avg_change_dist <- apply(dist_param, 1, function(B) coef(lm(fn_mu(B[1] + B[2]*d$x, sqrt(exp(B[3] + B[4]*d$x)))~d$x))[2])
-result <- c(Avg_change, quantile(Avg_change_dist, 0.025), quantile(Avg_change_dist, 0.975))
-names(result) <- c("Average change", "Lower 95%", "Upper 95%")
-result
-```
-
 
 
 

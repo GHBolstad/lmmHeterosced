@@ -2,7 +2,7 @@
 % Please edit documentation in R/lmmHeterosced.R
 \name{lmmHeterosced}
 \alias{lmmHeterosced}
-\title{Linear mixed model with heteroscedastisity}
+\title{Linear mixed model with heteroscedasticity}
 \usage{
 lmmHeterosced(formula, data, heterosced_formula = ~1)
 }
@@ -11,14 +11,17 @@ lmmHeterosced(formula, data, heterosced_formula = ~1)
 
 \item{data}{a data frame with the data}
 
-\item{heterosced_formula}{an optional heteroscadisity formula}
+\item{heterosced_formula}{an optional heteroscedasticity formula}
 }
 \value{
 \code{lmmHeterosced} a list with elements:
-Fixef (fixed effects estaimtes),
+Fixef (fixed effects estimates),
 Heterosced (parameters of the heteroscedasticity function, a linear function of the log residual variance),
 Ranef_log_Var (random effect variances on log),
 Ranef (random effect),
+Residuals,
+data (the original data),
+error_var_matrix (variance matrix of the estimation error)
 fit (nlminb output),
 obj (MakeADFun ouptut),
 optTime (Optimization time)
@@ -27,9 +30,8 @@ optTime (Optimization time)
 \code{lmmHeterosced} Linear mixed model with the log error variance as linear function of data.
 }
 \examples{
-
+# See the vignette 'lmmHeterosced'.
 }
 \author{
 Geir H. Bolstad
 }
-
