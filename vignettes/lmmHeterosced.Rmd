@@ -29,7 +29,7 @@ library(lmmHeterosced)
 ```
 
 # Simulated data
-To illustrate the use of the model we simulate a dataset with two explanatory variables and 10 categories with 50 data points within each category. The two explanatory variables influence both the expectation and variance of y. 
+To illustrate the use of the model we simulate data with two explanatory variables and 10 categories with 50 data points within each category. The two explanatory variables influence both the expectation and variance of y. 
 ```{r data, fig.height=7, fig.width=7}
 n_cat <- 10
 n <- 50
@@ -63,6 +63,10 @@ mod$Fixef
 The intercept gives the log residual variance at x1 = x2 = 0 and the linear parameters (x1 and x2) gives the change in log residual variance with x
 ```{r}
 mod$Heterosced
+```
+# AICc
+```{r}
+mod$AICc
 ```
 
 # Plot of the model

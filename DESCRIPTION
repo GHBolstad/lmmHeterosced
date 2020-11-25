@@ -12,5 +12,5 @@ Imports:
     Rcpp,
     lme4,
     Matrix
-RoxygenNote: 5.0.1
+RoxygenNote: 7.1.1
 LinkingTo: Rcpp, TMB, RcppEigen

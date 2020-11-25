@@ -4,7 +4,7 @@
 \alias{lmmHeterosced}
 \title{Linear mixed model with heteroscedasticity}
 \usage{
-lmmHeterosced(formula, data, heterosced_formula = ~1)
+lmmHeterosced(formula, data, heterosced_formula = ~1, REML = TRUE)
 }
 \arguments{
 \item{formula}{model formula lmer style}
@@ -12,18 +12,20 @@ lmmHeterosced(formula, data, heterosced_formula = ~1)
 \item{data}{a data frame with the data}
 
 \item{heterosced_formula}{an optional heteroscedasticity formula}
+
+\item{REML}{if restricted maximum likelihood should be used}
 }
 \value{
-\code{lmmHeterosced} a list with elements:
-Fixef (fixed effects estimates),
-Heterosced (parameters of the heteroscedasticity function, a linear function of the log residual variance),
-Ranef_log_Var (random effect variances on log),
+\code{lmmHeterosced} returns a list with elements:
+Fixef (fixed effects estimates),  
+Heterosced (parameters of the heteroscedasticity function, a linear function of the log residual variance),  
+Ranef_log_Var (random effect variances on log),  
 Ranef (random effect),
 Residuals,
 data (the original data),
 error_var_matrix (variance matrix of the estimation error)
 fit (nlminb output),
-obj (MakeADFun ouptut),
+obj (MakeADFun output),
 optTime (Optimization time)
 }
 \description{

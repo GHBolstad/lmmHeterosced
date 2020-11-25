@@ -5,17 +5,18 @@
 #' @param formula model formula lmer style
 #' @param data a data frame with the data
 #' @param heterosced_formula an optional heteroscedasticity formula
+#' @param REML if restricted maximum likelihood should be used
 #'
-#' @return \code{lmmHeterosced} a list with elements:
-#' Fixef (fixed effects estimates),
-#' Heterosced (parameters of the heteroscedasticity function, a linear function of the log residual variance),
-#' Ranef_log_Var (random effect variances on log),
+#' @return \code{lmmHeterosced} returns a list with elements:
+#' Fixef (fixed effects estimates),  
+#' Heterosced (parameters of the heteroscedasticity function, a linear function of the log residual variance),  
+#' Ranef_log_Var (random effect variances on log),  
 #' Ranef (random effect),
 #' Residuals,
 #' data (the original data),
 #' error_var_matrix (variance matrix of the estimation error)
 #' fit (nlminb output),
-#' obj (MakeADFun ouptut),
+#' obj (MakeADFun output),
 #' optTime (Optimization time)
 #' 
 #'
@@ -31,7 +32,7 @@
 #' @export
 
 
-lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1){
+lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
 
   mf <- lme4::lFormula(formula, data)
 
@@ -55,7 +56,11 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1){
                 b_ln_R = matrix(0, ncol = 1, nrow = ncol(Q)),
                 ln_G = rep(0, n_random)
                 )
-  random <- c("b", "u") # the fixed effects are added to get REML estimates
+  if(REML){
+    random <- c("b", "u") # the fixed effects are added to get REML estimates
+  }else{
+    random <- c("u")
+  }
 
   #------------
   # Data to TMB
@@ -99,10 +104,15 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1){
   error_var <- as.matrix(solve(SD_report$jointPrecision)[c(Fixef_param, Heterosced_param), c(Fixef_param, Heterosced_param)])
   colnames(error_var) <- rownames(error_var) <- c(rownames(Fixef), rownames(Heterosced))
   
-  # include AICc!
   
-  report <- list(Fixef=Fixef, Heterosced=Heterosced, Ranef_log_Var=Ranef_log_Var, Ranef=Ranef, Residuals = Residuals, data = data, response = names(mf$fr[1]), 
-       error_var_matrix = error_var, fit = fit, obj = obj, optTime = optTime)
+  k = nrow(Fixef)+nrow(Heterosced)+nrow(Ranef_log_Var)
+  logLik <- -fit[["objective"]]
+  n = nrow(Y)
+  AICc <- 2*k - 2*logLik + 2*k*(k+1)/(n-k-1)
+
+  report <- list(Fixef=Fixef, Heterosced=Heterosced, Ranef_log_Var=Ranef_log_Var, 
+                 Ranef=Ranef, Residuals = Residuals, AICc = AICc, logLik = logLik, data = data, response = names(mf$fr[1]),
+                 error_var_matrix = error_var, fit = fit, obj = obj, optTime = optTime)
   class(report) = "lmmHeterosced"
   return(report)
 }
@@ -167,6 +177,7 @@ plot.lmmHeterosced <- function(x, x_axis, col_data = "grey", col_expectation = "
 #' @author Geir H. Bolstad
 #' @importFrom graphics plot lines legend
 #' @export
+#' 
 plot_abs_y <- function(mod, x, xlab = NULL, ylab = NULL, col = "grey", line_col = "black", cex.legend = 1, ...){
   fn_mu<-function(m,s){ # expectation of folded normal
     s*sqrt(2/pi)*exp((-1*m^2)/(2*s^2))+m*(1-2*pnorm(-1*m/s,0,1)) 
