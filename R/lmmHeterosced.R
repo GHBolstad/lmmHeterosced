@@ -34,16 +34,31 @@
 
 lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
 
-  mf <- lme4::lFormula(formula, data)
-
-  Y <- as.matrix(mf$fr[1])
-  X <- Matrix::Matrix(mf$X, sparse = T)
-  Z <- Matrix::t(Matrix::Matrix(mf$reTrms$Zt))
-  n_random <- length(mf$reTrms$flist)
-  n_u <- sapply(mf$reTrms$flist, function(x) length(unique(x)))
+  mf <- try(lme4::lFormula(formula, data), silent = TRUE)
+  if(mf[1]=="Error : No random effects terms specified in formula\n"){
+    modtype <- "lm"
+  }else{
+    modtype <- "lmm"
+  }
+  
+  if(modtype == "lm"){
+    Y <- as.matrix(model.frame(formula, data = data)[,1])
+    X <- Matrix::Matrix(model.matrix(formula, data = data), sparse = T)
+    # dummy values to make the code run without too many ifelse:
+      Z <- X
+      n_random <- 1
+      n_u <- ncol(Z)
+  }else{ # modtype == "lmm"
+    Y <- as.matrix(mf$fr[1])
+    X <- Matrix::Matrix(mf$X, sparse = T)
+    Z <- Matrix::t(Matrix::Matrix(mf$reTrms$Zt))
+    n_random <- length(mf$reTrms$flist)
+    n_u <- sapply(mf$reTrms$flist, function(x) length(unique(x)))
+  }
   u_start <- c(0, cumsum(n_u))
   u_end <- cumsum(n_u)
 
+  
   # The model matrix log residual variance
     Q <- model.matrix(heterosced_formula, data = data)
 
@@ -51,17 +66,23 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
   #----------------
   # Starting values
   #----------------
-  param <- list(b = matrix(0, ncol = 1, nrow = ncol(X)),
+    param <- list(b = matrix(0, ncol = 1, nrow = ncol(X)),
                 u = matrix(0, ncol = 1, nrow = ncol(Z)),
                 b_ln_R = matrix(0, ncol = 1, nrow = ncol(Q)),
                 ln_G = rep(0, n_random)
                 )
-  if(REML){
-    random <- c("b", "u") # the fixed effects are added to get REML estimates
-  }else{
-    random <- c("u")
-  }
-
+    if(REML){
+      random <- c("b", "u")
+    }else{
+      random <- c("u")
+    }
+    
+    if(modtype == "lm"){
+      map <- list(u = factor(rep(NA, length(param$u))), ln_G = factor(NA))
+    } else{
+      map <- list()
+    }
+    
   #------------
   # Data to TMB
   #------------
@@ -75,7 +96,7 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
   #--------------
   # Model fitting
   #--------------
-  obj <- TMB::MakeADFun(dt, param, DLL = "lmmHeterosced", random=random, silent = TRUE)
+  obj <- TMB::MakeADFun(dt, param, DLL = "lmmHeterosced", random=random, map = map, silent = TRUE)
   optTime <- system.time(
     fit <- with(obj, nlminb(start=par, objective=fn, gradient=gr))
   )
@@ -91,10 +112,12 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
                   dimnames=list(dimnames(X)[[2]], c("Estimate", "Std. Error")))
   Heterosced <- matrix(results[which(rownames(results)=="b_ln_R"),], ncol = 2, 
                        dimnames=list(dimnames(Q)[[2]], c("Estimate", "Std. Error")))
+  if(modtype == "lmm"){
   Ranef_log_Var <-  matrix(results[which(rownames(results)=="ln_G"),], ncol = 2,
                            dimnames=list(colnames(mf$reTrms$flist), c("Estimate", "Std. Error")))
   Ranef <- matrix(results[which(rownames(results)=="u"),], ncol = 2,
                   dimnames=list(dimnames(Z)[[2]], c("Estimate", "Std. Error")))
+  }
   Residuals <- obj$report()
   
 
@@ -104,15 +127,29 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
   error_var <- as.matrix(solve(SD_report$jointPrecision)[c(Fixef_param, Heterosced_param), c(Fixef_param, Heterosced_param)])
   colnames(error_var) <- rownames(error_var) <- c(rownames(Fixef), rownames(Heterosced))
   
+  if(modtype =="lm"){
+    k = nrow(Fixef)+nrow(Heterosced)
+  }else{
+    k = nrow(Fixef)+nrow(Heterosced)+nrow(Ranef_log_Var)
+  }
   
-  k = nrow(Fixef)+nrow(Heterosced)+nrow(Ranef_log_Var)
+  
   logLik <- -fit[["objective"]]
   n = nrow(Y)
   AICc <- 2*k - 2*logLik + 2*k*(k+1)/(n-k-1)
 
-  report <- list(Fixef=Fixef, Heterosced=Heterosced, Ranef_log_Var=Ranef_log_Var, 
-                 Ranef=Ranef, Residuals = Residuals, AICc = AICc, logLik = logLik, data = data, response = names(mf$fr[1]),
-                 error_var_matrix = error_var, fit = fit, obj = obj, optTime = optTime)
+  
+  if(modtype =="lm"){
+    report <- list(Fixef=Fixef, Heterosced=Heterosced, Residuals = Residuals, AICc = AICc, 
+                   logLik = logLik, data = data, response = names(model.frame(formula, data = data))[1],
+                   error_var_matrix = error_var, fit = fit, obj = obj, optTime = optTime)
+  }else{
+    report <- list(Fixef=Fixef, Heterosced=Heterosced, Ranef_log_Var=Ranef_log_Var, 
+                   Ranef=Ranef, Residuals = Residuals, AICc = AICc, logLik = logLik, data = data, response = names(mf$fr[1]),
+                   error_var_matrix = error_var, fit = fit, obj = obj, optTime = optTime)
+  }
+  
+  
   class(report) = "lmmHeterosced"
   return(report)
 }
