@@ -25,6 +25,7 @@ Type objective_function<Type>::operator() ()
   int n = Y.rows();
 
   // Mixed model equation
+  // vector<Type> residuals = Y - X*b - Z*u - m;
   vector<Type> residuals = Y - X*b - Z*u;
 
   //----------
@@ -50,7 +51,6 @@ Type objective_function<Type>::operator() ()
     }
   }
   
-
   //-------
   // Report
   //-------

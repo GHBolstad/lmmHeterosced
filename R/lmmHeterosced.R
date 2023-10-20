@@ -78,11 +78,14 @@ lmmHeterosced <- function(formula, heterosced_formula = ~ 1, SE = NULL, data, RE
     param <- list(b = matrix(0, ncol = 1, nrow = ncol(X)),
                 u = matrix(0, ncol = 1, nrow = ncol(Z)),
                 b_ln_R = matrix(0, ncol = 1, nrow = ncol(Q)),
-                ln_G = rep(0, n_random)
+                ln_G = rep(0, n_random)#,
+                #m = matrix(0, ncol = 1, nrow(Y))
                 )
     if(REML){
+      #random <- c("b", "u", "m")
       random <- c("b", "u")
     }else{
+      #random <- c("u", "m")
       random <- c("u")
     }
     
@@ -95,6 +98,12 @@ lmmHeterosced <- function(formula, heterosced_formula = ~ 1, SE = NULL, data, RE
       map <- list()
     }
     
+    if(is.null(SE)){
+      #map$m <- factor(rep(NA, length(param$m)))
+      #SE   <- rep(1, nrow(Y))
+      SE   <- rep(0, nrow(Y))
+    } 
+
   #------------
   # Data to TMB
   #------------
