@@ -3,8 +3,9 @@
 #' \code{lmmHeterosced} Linear mixed model with the log error variance as linear function of data.
 #'
 #' @param formula model formula lmer style
-#' @param data a data frame with the data
 #' @param heterosced_formula an optional heteroscedasticity formula
+#' @param SE an optional vector of standard errors of each value in the response variable
+#' @param data a data frame with the data
 #' @param REML if restricted maximum likelihood should be used
 #'
 #' @return \code{lmmHeterosced} returns a list with elements:
@@ -19,6 +20,10 @@
 #' obj (MakeADFun output),
 #' optTime (Optimization time)
 #' 
+#' @details 
+#' When providing standard errors in the SE argument, measurement error will be takein into account when 
+#' estimating the residual variance and the heteroscedasticity relationship. The measurement error is assumed to 
+#' be normally distributed. The vector of standard error need to have the same length and order as the response.
 #'
 #' @author Geir H. Bolstad
 #'
@@ -32,8 +37,9 @@
 #' @export
 
 
-lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
+lmmHeterosced <- function(formula, heterosced_formula = ~ 1, SE = NULL, data, REML = TRUE){
 
+  # Fixed and random effect design matrices
   mf <- try(lme4::lFormula(formula, data), silent = TRUE)
   if(mf[1]=="Error : No random effects terms specified in formula\n"){
     modtype <- "lm"
@@ -57,12 +63,15 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
   }
   u_start <- c(0, cumsum(n_u))
   u_end <- cumsum(n_u)
-
   
-  # The model matrix log residual variance
-    Q <- model.matrix(heterosced_formula, data = data)
+  # The model matrix for the log residual variance
+  Q <- model.matrix(heterosced_formula, data = data)
 
-
+  # Measurement error
+  if(is.null(SE)){
+    SE   <- rep(0, nrow(Y))
+  } 
+    
   #----------------
   # Starting values
   #----------------
@@ -77,6 +86,9 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
       random <- c("u")
     }
     
+  #----
+  # map
+  #----
     if(modtype == "lm"){
       map <- list(u = factor(rep(NA, length(param$u))), ln_G = factor(NA))
     } else{
@@ -86,17 +98,18 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
   #------------
   # Data to TMB
   #------------
-  dt <- list(Y = Y, X = X, Z = Z,
+  d <- list(Y = Y, X = X, Z = Z,
              n_random = n_random,
              u_start = u_start,
              u_end = u_end,
-             Q = Q)
+             Q = Q,
+             SE = SE)
 
 
   #--------------
   # Model fitting
   #--------------
-  obj <- TMB::MakeADFun(dt, param, DLL = "lmmHeterosced", random=random, map = map, silent = TRUE)
+  obj <- TMB::MakeADFun(d, param, DLL = "lmmHeterosced", random=random, map = map, silent = TRUE)
   optTime <- system.time(
     fit <- with(obj, nlminb(start=par, objective=fn, gradient=gr))
   )
@@ -120,22 +133,26 @@ lmmHeterosced <- function(formula, data, heterosced_formula = ~ 1, REML = TRUE){
   }
   Residuals <- obj$report()
   
-
-  Fixef_param <- which(colnames(SD_report$jointPrecision)=="b")
-  Heterosced_param <- which(colnames(SD_report$jointPrecision)=="b_ln_R")
   
-  error_var <- as.matrix(solve(SD_report$jointPrecision)[c(Fixef_param, Heterosced_param), c(Fixef_param, Heterosced_param)])
+  if(modtype == "lm" & REML == FALSE){
+    Fixef_param <- which(colnames(SD_report$cov.fixed)=="b")
+    Heterosced_param <- which(colnames(SD_report$cov.fixed)=="b_ln_R")
+    error_var <- as.matrix(SD_report$cov.fixed[c(Fixef_param, Heterosced_param), c(Fixef_param, Heterosced_param)])
+  }else{
+    Fixef_param <- which(colnames(SD_report$jointPrecision)=="b")
+    Heterosced_param <- which(colnames(SD_report$jointPrecision)=="b_ln_R")
+    error_var <- as.matrix(solve(SD_report$jointPrecision)[c(Fixef_param, Heterosced_param), c(Fixef_param, Heterosced_param)])
+  }
   colnames(error_var) <- rownames(error_var) <- c(rownames(Fixef), rownames(Heterosced))
   
+  
+  logLik <- -fit[["objective"]]
+  n = nrow(Y)
   if(modtype =="lm"){
     k = nrow(Fixef)+nrow(Heterosced)
   }else{
     k = nrow(Fixef)+nrow(Heterosced)+nrow(Ranef_log_Var)
   }
-  
-  
-  logLik <- -fit[["objective"]]
-  n = nrow(Y)
   AICc <- 2*k - 2*logLik + 2*k*(k+1)/(n-k-1)
 
   
