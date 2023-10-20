@@ -12,7 +12,7 @@ Type objective_function<Type>::operator() ()
   DATA_FACTOR(u_start);
   DATA_FACTOR(u_end);
   DATA_MATRIX(Q);        // Design matrix for the log residual variance
-  DATA_VECTOR(SE);       // Standard errors of the mean
+  DATA_VECTOR(SE);       // Standard error of each element of Y
 
 
   // Parameters
@@ -25,7 +25,6 @@ Type objective_function<Type>::operator() ()
   int n = Y.rows();
 
   // Mixed model equation
-  // vector<Type> residuals = Y - X*b - Z*u - m;
   vector<Type> residuals = Y - X*b - Z*u;
 
   //----------
