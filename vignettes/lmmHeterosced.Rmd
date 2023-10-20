@@ -33,8 +33,14 @@ To illustrate the use of the model we simulate data with two explanatory variabl
 ```{r data, fig.height=7, fig.width=7}
 n_cat <- 10
 n <- 50
-d <- data.frame(x1 = rnorm(n*n_cat, 2, 1), x2=rnorm(n*n_cat, 1, 1), cat = rep(1:n_cat, each = n))
-d$y <- rnorm(nrow(d), 1+0.5*d$x1+0.1*d$x2, exp(0.5*(1+0.5*d$x1+0.6*d$x2))) + rep(rnorm(n_cat), each = n)
+d <- data.frame(x1 = rnorm(n*n_cat, 2, 1), 
+                x2=rnorm(n*n_cat, 1, 1), 
+                cat = rep(1:n_cat, each = n),
+                SE = runif(n*n_cat,0.1,0.9))
+d$y <- rnorm(nrow(d), 1+0.5*d$x1+0.1*d$x2, exp(0.5*(1+0.5*d$x1+0.6*d$x2))) + # within category effect including heteroscedastity
+        rep(rnorm(n_cat), each = n) + # random effect of category
+        rnorm(nrow(d),0, d$SE) # measurment error
+  
 par(mfrow=c(2,1))
 with(d, plot(x1,y))
 with(d, plot(x2,y))
@@ -51,7 +57,7 @@ d$x2c <- d$x2 - mean(d$x2)
 
 # The model
 ```{r analysis}
-mod <- lmmHeterosced(formula = y~ x1c + x2c +(1|cat), heterosced_formula = ~ x1c + x2c, data = d)
+mod <- lmmHeterosced(formula = y~ x1c + x2c +(1|cat), heterosced_formula = ~ x1c + x2c, SE = d$SE, data = d)
 ```
 
 # Results of average change in y
